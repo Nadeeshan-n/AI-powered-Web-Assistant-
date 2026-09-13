@@ -14,11 +14,34 @@ const modelSelect = document.getElementById('modelSelect');
 const sendButton = document.getElementById('sendButton');
 const sendIcon = document.getElementById('sendIcon');
 const loadingSpinner = document.getElementById('loadingSpinner');
+const themeToggleBtn = document.getElementById('themeToggleBtn');
+const themeToggleText = document.getElementById('themeToggleText');
+
+let currentTheme = localStorage.getItem('ai_assistant_theme') || 'light';
+
+function applyTheme(theme) {
+    currentTheme = theme;
+    if (theme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        if (themeToggleText) themeToggleText.textContent = '[ MODE // DARK ]';
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+        if (themeToggleText) themeToggleText.textContent = '[ MODE // LIGHT ]';
+    }
+    localStorage.setItem('ai_assistant_theme', theme);
+}
+
+function toggleTheme() {
+    applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
+    // Apply initial theme
+    applyTheme(currentTheme);
+
     // Set default model
-    modelSelect.value = 'llama3';
+    modelSelect.value = 'gemini';
     
     // Setup event listeners
     setupEventListeners();
@@ -28,6 +51,11 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function setupEventListeners() {
+    // Theme toggle
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', toggleTheme);
+    }
+
     // Form submission
     chatForm.addEventListener('submit', handleSubmit);
     
@@ -93,7 +121,8 @@ async function sendMessage(content, model) {
     setLoadingState(true);
     
     try {
-        const response = await fetch('/generate', {
+        const doFetch = (window.fetch ? window.fetch.bind(window) : fetch);
+        const response = await doFetch('/generate', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -147,42 +176,42 @@ async function sendMessage(content, model) {
     }
 }
 
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 function displayMessage(message) {
     const messageEl = document.createElement('div');
     messageEl.className = `message ${message.type}`;
     
     const time = message.timestamp.toLocaleTimeString([], { 
         hour: '2-digit', 
-        minute: '2-digit' 
+        minute: '2-digit',
+        second: '2-digit'
     });
     
-    const avatarIcon = message.type === 'user' ? 
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' :
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>';
+    const avatarLabel = message.type === 'user' ? 'USER_01' : 'CORE_AI';
+    const senderLabel = message.type === 'user' ? 'AUTH // LOCAL_USER' : 'GEMINI // FLASH_CORE';
     
     const modelBadge = message.model ? 
-        `<span class="message-model">${message.model}</span>` : '';
+        `<span class="message-model">${escapeHtml(message.model.toUpperCase())}</span>` : '';
     
-    const duration = message.duration ? 
-        `<span>${message.duration.toFixed(2)}s</span>` : '';
+    const durationBadge = message.duration ? 
+        `<span style="opacity: 0.7;">[LATENCY: ${message.duration.toFixed(2)}s]</span>` : '';
     
     messageEl.innerHTML = `
-        <div class="message-wrapper">
-            <div class="message-header">
-                <div class="message-avatar">
-                    ${avatarIcon}
-                </div>
-                <div class="message-info">
-                    <span class="message-sender">${message.type === 'user' ? 'You' : 'AI Assistant'}</span>
-                    ${modelBadge}
-                </div>
+        <div class="avatar">${avatarLabel}</div>
+        <div class="message-body">
+            <div class="message-meta">
+                <span>${senderLabel}</span>
+                ${modelBadge}
+                <span>${time}</span>
+                ${durationBadge}
             </div>
             <div class="message-bubble">
-                <div class="message-text">${message.content}</div>
-            </div>
-            <div class="message-footer">
-                <span>${time}</span>
-                ${duration}
+                <div class="message-text">${escapeHtml(message.content)}</div>
             </div>
         </div>
     `;

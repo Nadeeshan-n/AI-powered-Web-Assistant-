@@ -3,110 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        // Ensure window.fetch has a setter so iframe harnesses/interceptors do not throw "only has a getter" error
+        (function() {
+            try {
+                var nativeFetch = window.fetch ? window.fetch.bind(window) : null;
+                var currentFetch = nativeFetch;
+                Object.defineProperty(window, 'fetch', {
+                    get: function() {
+                        return currentFetch;
+                    },
+                    set: function(val) {
+                        currentFetch = val;
+                    },
+                    configurable: true,
+                    enumerable: true
+                });
+            } catch (e) {
+                try {
+                    var proto = Object.getPrototypeOf(window);
+                    var protoFetch = window.fetch ? window.fetch.bind(window) : null;
+                    Object.defineProperty(proto, 'fetch', {
+                        get: function() {
+                            return protoFetch;
+                        },
+                        set: function(val) {
+                            protoFetch = val;
+                        },
+                        configurable: true,
+                        enumerable: true
+                    });
+                } catch (e2) {}
+            }
+
+            try {
+                var savedTheme = localStorage.getItem('ai_assistant_theme');
+                if (savedTheme === 'dark') {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                } else {
+                    document.documentElement.removeAttribute('data-theme');
+                }
+            } catch (themeErr) {}
+        })();
+    </script>
     <title>AI Assistant</title>
+    <meta name="description" content="AI-powered customer inquiry assistant using Gemini">
+    <meta property="og:title" content="AI Assistant">
+    <meta property="og:description" content="AI-powered customer inquiry assistant using Gemini">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&family=JetBrains+Mono:wght@400;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles.css">
 </head>
-<body class="font-ibm-plex">
-    <div class="app-container">
-        <!-- Header -->
+<body>
+    <div class="rail">
+        <div class="rail-icon">∑</div>
+        <div class="rail-icon">∏</div>
+        <div class="rail-icon active">⌘</div>
+    </div>
+
+    <aside>
+        <div class="side-header">
+            <div class="brand">Terminal_v4.0</div>
+        </div>
+        <div class="nav-label">Session_Data</div>
+        <div class="sidebar-item">Session: 01</div>
+        <div class="sidebar-item faint">Historical_Log</div>
+        
+        <div class="terminal-meta">
+            STATUS: ONLINE<br>
+            PING: 24MS<br>
+            ENCRYPTION: AES-256
+        </div>
+    </aside>
+
+    <main>
         <div class="header">
-            <div class="header-content">
-                <h1 class="header-title">AI Assistant</h1>
-                <button id="clearBtn" class="clear-btn" style="display: none;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="m3 6 18 0"></path>
-                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                    </svg>
-                    Clear Chat
+            <div class="header-status">
+                <span class="status-dot"></span>
+                <span>CORE_READY // SYS_OK</span>
+            </div>
+            <div class="header-actions">
+                <button type="button" id="themeToggleBtn" class="theme-toggle-btn" title="Switch Theme (Light / Dark)">
+                    <span id="themeToggleText">[ MODE // LIGHT ]</span>
+                </button>
+                <button type="button" id="clearBtn" class="clear-btn" style="display: none;">
+                    [ FLUSH_CACHE ]
                 </button>
             </div>
         </div>
 
-        <!-- Chat Container -->
-        <div class="chat-container">
-            <!-- Messages Area -->
-            <div class="messages-area">
-                <div class="messages-content">
-                    <!-- Welcome Screen -->
-                    <div id="welcomeScreen" class="welcome-screen">
-                        <div class="welcome-icon">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
-                                <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-                                <line x1="9" y1="9" x2="9.01" y2="9"/>
-                                <line x1="15" y1="9" x2="15.01" y2="9"/>
-                            </svg>
-                        </div>
-                        <h2 class="welcome-title">Welcome to AI Assistant</h2>
-                        <p class="welcome-text">Choose a model and start a conversation. I'm here to help with your questions and tasks.</p>
-                    </div>
-
-                    <!-- Messages Container -->
-                    <div id="messagesContainer" class="messages-container"></div>
-
-                    <!-- Loading Indicator -->
-                    <div id="loadingIndicator" class="loading-indicator" style="display: none;">
-                        <div class="loading-bubble">
-                            <div class="loading-content">
-                                <div class="loading-dots">
-                                    <div class="dot"></div>
-                                    <div class="dot"></div>
-                                    <div class="dot"></div>
-                                </div>
-                                <span class="loading-text">AI is thinking...</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Messages End -->
-                    <div id="messagesEnd"></div>
+        <div class="chat-view">
+            <div id="welcomeScreen" class="welcome-screen">
+                <div class="welcome-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 17 10 11 4 5"></polyline>
+                        <line x1="12" y1="19" x2="20" y2="19"></line>
+                    </svg>
                 </div>
+                <h2 class="welcome-title">Welcome to AI Assistant</h2>
+                <p class="welcome-text">Choose a model and start a conversation. System ready for input. Diagnostic tools available in side panel.</p>
             </div>
 
-            <!-- Input Area -->
-            <div class="input-area">
-                <div class="input-content">
-                    <form id="chatForm" class="chat-form">
-                        <!-- Model Selection -->
-                        <div class="model-section">
-                            <span class="model-label">Model:</span>
-                            <div class="select-wrapper">
-                                <select id="modelSelect" class="model-select">
-                                    <option value="gemini">Gemini</option>
-                                </select>
-                            </div>
-                        </div>
+            <div id="messagesContainer" class="messages-container"></div>
 
-                        <!-- Message Input -->
-                        <div class="input-section">
-                            <div class="textarea-container">
-                                <textarea 
-                                    id="messageInput" 
-                                    class="message-textarea"
-                                    placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
-                                    rows="1"
-                                ></textarea>
-                            </div>
-                            
-                            <button type="submit" id="sendButton" class="send-button">
-                                <svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                                    <polygon points="22,2 15,22 11,13 2,9 22,2"></polygon>
-                                </svg>
-                                <div id="loadingSpinner" class="loading-spinner" style="display: none;">
-                                    <div class="spinner"></div>
-                                </div>
-                            </button>
-                        </div>
-                    </form>
-                </div>
+            <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+                RUNNING_INFERENCE... [WAIT]
             </div>
+            <div id="messagesEnd"></div>
         </div>
-    </div>
+
+        <div class="input-wrap">
+            <form id="chatForm" class="input-container">
+                <div class="model-picker">
+                    <span class="nav-label" style="padding: 0;">SELECT_CORE</span>
+                    <select id="modelSelect" class="model-select">
+                        <option value="gemini">Gemini_Pro</option>
+                    </select>
+                </div>
+
+                <div class="textarea-box">
+                    <textarea id="messageInput" placeholder="CMD > Input query..." rows="1"></textarea>
+                </div>
+
+                <button type="submit" id="sendButton" class="send-btn" disabled>
+                    <svg id="sendIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"></path>
+                    </svg>
+                    <div id="loadingSpinner" class="loading-spinner" style="display: none;">
+                        <div class="spinner"></div>
+                    </div>
+                </button>
+            </form>
+        </div>
+    </main>
 
     <script src="/static/script.js"></script>
 </body>
