@@ -9,7 +9,7 @@
     "start": "tsx server.ts"
   },
   "dependencies": {
-    "@google/genai": "latest",
+    "@google/genai": "^2.22.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2"
   },

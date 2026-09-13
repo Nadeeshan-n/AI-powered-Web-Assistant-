@@ -1,27 +1,66 @@
-from flask import Flask, render_template, request, jsonify
-from model import generate_response
-import config
+from flask import Flask, request, jsonify, render_template
+from model import gemini_response
+import time
 
 app = Flask(__name__)
 
-@app.route("/")
-def home():
+
+# Home page
+@app.route("/", methods=["GET"])
+def index():
     return render_template("index.html")
 
+
+# Generate AI response
 @app.route("/generate", methods=["POST"])
 def generate():
-    data = request.json
-    message = data.get("message")
-    model_type = data.get("model")
 
-    if not message:
-        return jsonify({"error": "No message provided"}), 400
+    data = request.json
+
+    user_message = data.get("message")
+    model = data.get("model", "gemini")
+
+    # Validate message
+    if not user_message:
+        return jsonify({
+            "error": "Missing message"
+        }), 400
+
+    # System prompt
+    system_prompt = (
+        "You are an AI assistant helping with customer inquiries. "
+        "Provide a helpful and concise response."
+    )
+
+    start_time = time.time()
 
     try:
-        response_data = generate_response(message, model_type)
-        return jsonify(response_data)
+
+        # Select model
+        if model == "gemini":
+
+            result = gemini_response(
+                system_prompt,
+                user_message
+            )
+
+        else:
+
+            return jsonify({
+                "error": "Invalid model selection"
+            }), 400
+
+        # Calculate response duration
+        result["duration"] = time.time() - start_time
+
+        return jsonify(result)
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
 
 if __name__ == "__main__":
     app.run(debug=True)
