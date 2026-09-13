@@ -11,24 +11,35 @@ def index():
 @app.route('/generate', methods=['POST'])
 def generate():
     data = request.json
+
     user_message = data.get('message')
-    model = data.get('model')
-    
-    if not user_message or not model:
-        return jsonify({"error": "Missing message or model selection"}), 400
-    
-    system_prompt = "You are an AI assistant helping with customer inquiries. Provide a helpful and concise response."
-    
+    model = data.get('model', 'gemini')
+
+    if not user_message:
+        return jsonify({"error": "Missing message"}), 400
+
+    system_prompt = (
+        "You are an AI assistant helping with customer inquiries. "
+        "Provide a helpful and concise response."
+    )
+
     start_time = time.time()
-    
+
     try:
         if model == 'gemini':
-            result = gemini_response(system_prompt, user_message)
+            result = gemini_response(
+                system_prompt,
+                user_message
+            )
         else:
-            return jsonify({"error": "Invalid model selection"}), 400
-        
+            return jsonify({
+                "error": "Invalid model selection"
+            }), 400
+
         result['duration'] = time.time() - start_time
+
         return jsonify(result)
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

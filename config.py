@@ -11,6 +11,6 @@ GEMINI_MODEL_ID = "gemini-3.8-flash"
 
 # Model parameters
 PARAMETERS = {
-    "temperature": 0.7,
+    "temperature": 0.2,
     "max_output_tokens": 256,
 }
