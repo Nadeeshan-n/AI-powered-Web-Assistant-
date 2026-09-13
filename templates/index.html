@@ -37,9 +37,9 @@
             }
 
             try {
-                var savedTheme = localStorage.getItem('ai_assistant_theme');
-                if (savedTheme === 'dark') {
-                    document.documentElement.setAttribute('data-theme', 'dark');
+                var savedTheme = localStorage.getItem('ai_assistant_theme') || 'dark';
+                if (savedTheme === 'light') {
+                    document.documentElement.setAttribute('data-theme', 'light');
                 } else {
                     document.documentElement.removeAttribute('data-theme');
                 }
@@ -52,42 +52,515 @@
     <meta property="og:description" content="AI-powered customer inquiry assistant using Gemini">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&family=JetBrains+Mono:wght@400;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        :root {
+            --bg: #1A1A1A;
+            --ink: #F0F0F0;
+            --ink-muted: #888888;
+            --accent: #00FF9D;
+            --accent-glow: rgba(0, 255, 157, 0.12);
+            --panel: #262626;
+            --panel-hover: #303030;
+            --border: #333333;
+            --selection-bg: #00FF9D;
+            --selection-color: #1A1A1A;
+            --placeholder: #666666;
+        }
+
+        [data-theme="light"] {
+            --bg: #F4F6F5;
+            --ink: #141716;
+            --ink-muted: #5A635E;
+            --accent: #008751;
+            --accent-glow: rgba(0, 135, 81, 0.1);
+            --panel: #FFFFFF;
+            --panel-hover: #EAEFEA;
+            --border: #CCD4CF;
+            --selection-bg: #008751;
+            --selection-color: #FFFFFF;
+            --placeholder: #8A948E;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--ink);
+            font-family: 'Space Mono', monospace, -apple-system, sans-serif;
+            height: 100vh;
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        aside {
+            border-right: 2px solid var(--accent);
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background: var(--bg);
+            overflow-y: auto;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .brand {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--accent);
+            letter-spacing: 0.05em;
+        }
+
+        .sidebar-item {
+            border: 1px solid var(--border);
+            padding: 15px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            background: var(--panel);
+            color: var(--ink);
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+
+        .sidebar-item:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--panel-hover);
+        }
+
+        .terminal-meta {
+            margin-top: auto;
+            font-size: 0.6rem;
+            color: var(--accent);
+            opacity: 0.85;
+            line-height: 1.8;
+            font-family: 'Space Mono', monospace;
+        }
+
+        main {
+            display: flex;
+            flex-direction: column;
+            padding: 30px;
+            height: 100vh;
+            overflow: hidden;
+            background: var(--bg);
+            transition: background-color 0.2s ease;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            transition: border-color 0.2s ease;
+        }
+
+        .header-status {
+            font-size: 0.7rem;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.08em;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 6px var(--accent);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .theme-toggle-btn {
+            background: none;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 6px 12px;
+            cursor: pointer;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            transition: all 0.15s ease;
+        }
+
+        .theme-toggle-btn:hover {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .clear-btn {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--ink-muted);
+            padding: 6px 12px;
+            cursor: pointer;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            transition: all 0.15s ease;
+        }
+
+        .clear-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .chat-view {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .welcome-screen {
+            max-width: 600px;
+            padding: 40px;
+            border: 2px dashed var(--accent);
+            margin: 40px auto;
+            background: var(--panel);
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .welcome-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            color: var(--accent);
+            letter-spacing: 0.02em;
+        }
+
+        .welcome-text {
+            font-size: 0.85rem;
+            line-height: 1.7;
+            color: var(--ink);
+        }
+
+        .messages-container {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            width: 100%;
+            padding: 10px 0;
+        }
+
+        .message {
+            padding: 16px 20px;
+            border-radius: 4px;
+            display: flex;
+            gap: 14px;
+            width: fit-content;
+            max-width: 80%;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+
+        /* AI Message on Left Side */
+        .message.ai {
+            align-self: flex-start;
+            margin-right: auto;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+        }
+
+        .message.ai .avatar {
+            color: var(--accent);
+            font-weight: bold;
+            font-size: 0.72rem;
+            letter-spacing: 0.05em;
+            font-family: 'Space Mono', monospace;
+            padding-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .message.ai .message-body {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .message.ai .message-meta {
+            font-size: 0.65rem;
+            color: var(--ink-muted);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* User Message on Right Side */
+        .message.user {
+            align-self: flex-end;
+            margin-left: auto;
+            background: var(--panel);
+            border: 1px solid var(--accent);
+            border-right: 3px solid var(--accent);
+            flex-direction: row-reverse;
+        }
+
+        .message.user .avatar {
+            color: var(--accent);
+            background: rgba(0, 255, 157, 0.08);
+            border: 1px solid var(--accent);
+            padding: 2px 6px;
+            font-weight: bold;
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+            font-family: 'Space Mono', monospace;
+            height: fit-content;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-body {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            min-width: 0;
+        }
+
+        .message.user .message-meta {
+            font-size: 0.65rem;
+            color: var(--ink-muted);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .message.user .message-text {
+            text-align: left;
+        }
+
+        [data-theme="light"] .message.user .avatar {
+            background: rgba(0, 135, 81, 0.08);
+        }
+
+        .message-model {
+            color: var(--accent);
+            font-size: 0.6rem;
+            border: 1px solid var(--accent);
+            padding: 2px 6px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .message-bubble {
+            font-size: 0.875rem;
+            line-height: 1.65;
+            color: var(--ink);
+        }
+
+        .message-text {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .loading-indicator {
+            align-self: flex-start;
+            max-width: 80%;
+            padding: 14px 20px;
+            font-size: 0.68rem;
+            color: var(--accent);
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.1em;
+            border: 1px dashed var(--accent);
+            background: var(--accent-glow);
+            margin-top: 10px;
+            animation: blink 1.2s infinite ease-in-out;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.45; }
+        }
+
+        .input-wrap {
+            padding-top: 20px;
+            flex-shrink: 0;
+        }
+
+        .input-container {
+            display: grid;
+            grid-template-columns: 150px 1fr 50px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            transition: border-color 0.15s ease;
+        }
+
+        .input-container:focus-within {
+            border-color: var(--accent);
+        }
+
+        select {
+            background: transparent;
+            color: var(--accent);
+            border: none;
+            border-right: 1px solid var(--border);
+            padding: 15px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            outline: none;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        select option {
+            background: var(--panel);
+            color: var(--ink);
+        }
+
+        textarea {
+            background: transparent;
+            color: var(--ink);
+            border: none;
+            padding: 15px;
+            font-family: 'Space Mono', monospace;
+            outline: none;
+            font-size: 0.85rem;
+            resize: none;
+            line-height: 1.5;
+            max-height: 128px;
+        }
+
+        textarea::placeholder {
+            color: var(--placeholder);
+        }
+
+        .send-btn {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: 'Space Mono', monospace;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.15s ease;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            opacity: 0.85;
+        }
+
+        .send-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .loading-spinner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            border-top-color: var(--bg);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        ::selection {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                grid-template-columns: 1fr;
+            }
+            aside {
+                display: none;
+            }
+            main {
+                padding: 16px;
+            }
+            .message {
+                max-width: 92%;
+            }
+            .input-container {
+                grid-template-columns: 1fr 48px;
+            }
+            select {
+                display: none;
+            }
+            .welcome-screen {
+                margin: 20px auto;
+                padding: 24px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="rail">
-        <div class="rail-icon">∑</div>
-        <div class="rail-icon">∏</div>
-        <div class="rail-icon active">⌘</div>
-    </div>
-
     <aside>
-        <div class="side-header">
-            <div class="brand">Terminal_v4.0</div>
-        </div>
-        <div class="nav-label">Session_Data</div>
-        <div class="sidebar-item">Session: 01</div>
-        <div class="sidebar-item faint">Historical_Log</div>
-        
-        <div class="terminal-meta">
-            STATUS: ONLINE<br>
-            PING: 24MS<br>
-            ENCRYPTION: AES-256
-        </div>
+        <div class="brand">AI_NODE</div>
+        <div class="sidebar-item">SESSION_01</div>
+        <div class="sidebar-item">HISTORICAL_LOG</div>
+        <div class="terminal-meta">STATUS: ONLINE<br>SYNC_ACTIVE</div>
     </aside>
 
     <main>
         <div class="header">
             <div class="header-status">
                 <span class="status-dot"></span>
-                <span>CORE_READY // SYS_OK</span>
+                <span>SYSTEM_READY</span>
             </div>
             <div class="header-actions">
-                <button type="button" id="themeToggleBtn" class="theme-toggle-btn" title="Switch Theme (Light / Dark)">
-                    <span id="themeToggleText">[ MODE // LIGHT ]</span>
+                <button type="button" id="themeToggleBtn" class="theme-toggle-btn" title="Toggle Theme">
+                    <span id="themeToggleText">[ DARK_MODE ]</span>
                 </button>
-                <button type="button" id="clearBtn" class="clear-btn" style="display: none;">
+                <button type="button" id="clearBtn" class="clear-btn" style="display: none;" title="Flush Session Cache">
                     [ FLUSH_CACHE ]
                 </button>
             </div>
@@ -95,14 +568,8 @@
 
         <div class="chat-view">
             <div id="welcomeScreen" class="welcome-screen">
-                <div class="welcome-icon">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="4 17 10 11 4 5"></polyline>
-                        <line x1="12" y1="19" x2="20" y2="19"></line>
-                    </svg>
-                </div>
-                <h2 class="welcome-title">Welcome to AI Assistant</h2>
-                <p class="welcome-text">Choose a model and start a conversation. System ready for input. Diagnostic tools available in side panel.</p>
+                <h2 class="welcome-title">TERMINAL INTERFACE</h2>
+                <p class="welcome-text">Welcome to AI Assistant. Awaiting input for heuristic analysis.</p>
             </div>
 
             <div id="messagesContainer" class="messages-container"></div>
@@ -115,21 +582,12 @@
 
         <div class="input-wrap">
             <form id="chatForm" class="input-container">
-                <div class="model-picker">
-                    <span class="nav-label" style="padding: 0;">SELECT_CORE</span>
-                    <select id="modelSelect" class="model-select">
-                        <option value="gemini">Gemini_Pro</option>
-                    </select>
-                </div>
-
-                <div class="textarea-box">
-                    <textarea id="messageInput" placeholder="CMD > Input query..." rows="1"></textarea>
-                </div>
-
-                <button type="submit" id="sendButton" class="send-btn" disabled>
-                    <svg id="sendIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M5 12h14M12 5l7 7-7 7"></path>
-                    </svg>
+                <select id="modelSelect" aria-label="Select AI Model">
+                    <option value="gemini">GEMINI_PRO</option>
+                </select>
+                <textarea id="messageInput" placeholder="CMD >" rows="1"></textarea>
+                <button type="submit" id="sendButton" class="send-btn" disabled aria-label="Send Query">
+                    <span id="sendIcon">></span>
                     <div id="loadingSpinner" class="loading-spinner" style="display: none;">
                         <div class="spinner"></div>
                     </div>

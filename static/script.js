@@ -17,18 +17,32 @@ const loadingSpinner = document.getElementById('loadingSpinner');
 const themeToggleBtn = document.getElementById('themeToggleBtn');
 const themeToggleText = document.getElementById('themeToggleText');
 
-let currentTheme = localStorage.getItem('ai_assistant_theme') || 'light';
+function getStoredTheme() {
+    try {
+        return localStorage.getItem('ai_assistant_theme') || 'dark';
+    } catch (e) {
+        return 'dark';
+    }
+}
+
+function setStoredTheme(theme) {
+    try {
+        localStorage.setItem('ai_assistant_theme', theme);
+    } catch (e) {}
+}
+
+let currentTheme = getStoredTheme();
 
 function applyTheme(theme) {
     currentTheme = theme;
-    if (theme === 'dark') {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        if (themeToggleText) themeToggleText.textContent = '[ MODE // DARK ]';
+    if (theme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        if (themeToggleText) themeToggleText.textContent = '[ LIGHT_MODE ]';
     } else {
         document.documentElement.removeAttribute('data-theme');
-        if (themeToggleText) themeToggleText.textContent = '[ MODE // LIGHT ]';
+        if (themeToggleText) themeToggleText.textContent = '[ DARK_MODE ]';
     }
-    localStorage.setItem('ai_assistant_theme', theme);
+    setStoredTheme(theme);
 }
 
 function toggleTheme() {
@@ -192,8 +206,8 @@ function displayMessage(message) {
         second: '2-digit'
     });
     
-    const avatarLabel = message.type === 'user' ? 'USER_01' : 'CORE_AI';
-    const senderLabel = message.type === 'user' ? 'AUTH // LOCAL_USER' : 'GEMINI // FLASH_CORE';
+    const avatarLabel = message.type === 'user' ? 'USER' : 'AI_NODE';
+    const senderLabel = message.type === 'user' ? 'SESSION_USER' : 'SYSTEM_NODE';
     
     const modelBadge = message.model ? 
         `<span class="message-model">${escapeHtml(message.model.toUpperCase())}</span>` : '';
@@ -248,7 +262,7 @@ function hideWelcomeScreen() {
 }
 
 function showWelcomeScreen() {
-    welcomeScreen.style.display = 'flex';
+    welcomeScreen.style.display = 'block';
 }
 
 function showClearButton() {

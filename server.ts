@@ -14,8 +14,9 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// Serve static assets from /static
+// Serve static assets from /static and root
 app.use("/static", express.static(path.join(__dirname, "static")));
+app.use(express.static(path.join(__dirname, "static")));
 
 // Lazy-initialize Gemini AI client
 let aiClient: GoogleGenAI | null = null;
