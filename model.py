@@ -42,7 +42,7 @@ gemini_llm = ChatGoogleGenerativeAI(
 
 # Prompt template
 gemini_template = PromptTemplate(
-    template="""You are an AI customer support assistant.
+    template="""You are an personal AI assistant.
 
 {system_prompt}
 
