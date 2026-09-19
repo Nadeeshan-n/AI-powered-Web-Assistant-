@@ -15,3 +15,8 @@ PARAMETERS = {
     "temperature": float(os.getenv("AI_TEMPERATURE", "0.2")),
     "max_output_tokens": int(os.getenv("AI_MAX_OUTPUT_TOKENS", "512")),
 }
+
+HF_EMBEDDING_MODEL = os.getenv(
+    "HF_EMBEDDING_MODEL",
+    "thenlper/gte-large"
+)

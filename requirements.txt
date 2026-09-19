@@ -6,3 +6,11 @@ google-generativeai
 langchain-openai
 pydantic
 openai
+python-dotenv
+langchain
+langchain-openai
+langchain-community
+langchain-text-splitters
+pypdf
+chromadb
+huggingface-hub
