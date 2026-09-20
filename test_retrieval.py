@@ -3,7 +3,7 @@ from services.rag_service import rag_service
 
 question = "What is the purpose of this document?"
 
-documents = rag_service.search(
+documents = rag_service.retrieve(
     question,
     k=4
 )
