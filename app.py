@@ -49,9 +49,7 @@ def generate():
         silent=True
     ) or {}
 
-    user_message = data.get(
-        "message"
-    )
+    user_message = data.get("message")
 
     if (
         not user_message
@@ -70,6 +68,11 @@ def generate():
             user_message.strip()
         )
 
+        if not isinstance(result, dict):
+            raise TypeError(
+                "AI service did not return a dictionary."
+            )
+
         result["duration"] = (
             time.time() - start_time
         )
@@ -80,13 +83,12 @@ def generate():
 
         print(
             "Error generating response:",
-            e
+            repr(e)
         )
 
         return jsonify({
             "error": str(e)
         }), 500
-
 
 # ============================================================
 # Upload and index PDF

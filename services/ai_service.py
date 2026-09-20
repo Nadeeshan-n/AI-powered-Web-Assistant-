@@ -10,7 +10,7 @@ def generate_ai_response(
     # 1. Retrieve relevant documents
     # --------------------------------------------------------
 
-    documents = rag_service.retrieve(
+    documents = rag_service.search(
         user_message,
         k=4
     )

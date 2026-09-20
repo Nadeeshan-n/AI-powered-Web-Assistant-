@@ -94,7 +94,10 @@ class RAGService:
     # --------------------------------------------------------
     # Retrieve documents
     # --------------------------------------------------------
-
+    def search(self, query: str, k: int = 4) -> List[Document]:
+        return self.vectorstore.similarity_search(query, k=k)
+    
+    
     def retrieve(
         self,
         query: str,

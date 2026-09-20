@@ -6,11 +6,11 @@ from config import (
     AI_PROVIDER,
     OPENROUTER_API_KEY,
     OPENROUTER_MODEL,
+    OPENROUTER_FALLBACK_MODELS,
     HF_TOKEN,
     HF_MODEL,
     PARAMETERS,
 )
-
 
 # ============================================================
 # Structured response schema
@@ -53,13 +53,15 @@ class AIResponse(BaseModel):
 # ============================================================
 
 def create_llm():
-
     if AI_PROVIDER == "openrouter":
 
         if not OPENROUTER_API_KEY:
-            raise ValueError(
-                "OPENROUTER_API_KEY is not configured."
-            )
+            raise ValueError("OPENROUTER_API_KEY is not configured.")
+
+        models = [
+            OPENROUTER_MODEL,
+            *OPENROUTER_FALLBACK_MODELS
+        ]
 
         return ChatOpenAI(
             model=OPENROUTER_MODEL,
@@ -67,18 +69,23 @@ def create_llm():
             base_url="https://openrouter.ai/api/v1",
             temperature=PARAMETERS["temperature"],
             max_tokens=PARAMETERS["max_output_tokens"],
+            extra_body={
+                "models": models,
+                "provider": {
+                    "allow_fallbacks": True
+                }
+            },
             default_headers={
                 "HTTP-Referer": "http://localhost:5000",
-                "X-OpenRouter-Title": "AI-Powered Web Assistant",
+                "X-Title": "AI Powered Web Assistant",
             },
-        )
+
+      )
 
     elif AI_PROVIDER == "huggingface":
 
         if not HF_TOKEN:
-            raise ValueError(
-                "HF_TOKEN is not configured."
-            )
+            raise ValueError("HF_TOKEN is not configured.")
 
         return ChatOpenAI(
             model=HF_MODEL,
@@ -93,8 +100,18 @@ def create_llm():
             f"Unsupported AI provider: {AI_PROVIDER}"
         )
 
+    # your Hugging Face section...
+
+    # keep your Hugging Face section here
+
 
 llm = create_llm()
+
+
+# ============================================================
+# Structured output
+# ============================================================
+
 structured_llm = llm.with_structured_output(
     AIResponse,
     method="function_calling"
@@ -157,49 +174,29 @@ def generate_response(
         "context": context,
     })
 
+    # AIResponse object
     if isinstance(result, AIResponse):
         return result.model_dump()
 
-    return result
+    # Dictionary response
+    if isinstance(result, dict):
+        return {
+            "summary": result.get(
+                "summary",
+                user_message[:100]
+            ),
+            "sentiment": result.get(
+                "sentiment",
+                50
+            ),
+            "response": result.get(
+                "response",
+                "I could not generate a response."
+            )
+        }
 
-def generate_response(
-    user_message: str,
-    context: str = ""
-) -> dict:
-
-    result = chain.invoke({
-        "user_message": user_message,
-        "context": context,
-    })
-
-    if isinstance(result, AIResponse):
-
-        data = result.model_dump()
-
-    elif isinstance(result, dict):
-
-        data = result
-
-    else:
-
-        raise ValueError(
-            "Model returned an unsupported response type."
-        )
-
-    # Ensure required application fields exist
-    data.setdefault(
-        "summary",
-        user_message[:100]
+    # Helpful debugging instead of generic error
+    raise TypeError(
+        f"Unexpected structured output type: "
+        f"{type(result).__name__}"
     )
-
-    data.setdefault(
-        "sentiment",
-        50
-    )
-
-    data.setdefault(
-        "response",
-        "I could not generate a response."
-    )
-
-    return data
