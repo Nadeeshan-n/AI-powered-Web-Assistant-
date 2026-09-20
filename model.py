@@ -71,43 +71,41 @@ llm = create_llm()
 
 prompt = PromptTemplate(
     template="""
-You are an intelligent personal AI assistant.
+You are an intelligent AI assistant.
 
-Analyze the user's message and return a JSON object.
+Use the retrieved context to answer the user's question.
 
-The JSON must contain:
-
-"summary":
-A short summary of the user's message.
-
-"sentiment":
-An integer from 0 to 100.
-0 = very negative
-50 = neutral
-100 = very positive
-
-"response":
-A helpful and natural response to the user.
-
-{format_instructions}
+Retrieved context:
+{context}
 
 User message:
 {user_message}
 
-Return ONLY valid JSON.
+Rules:
+- Use the retrieved context when it is relevant.
+- Do not invent facts that are not supported by the context.
+- If the context does not contain enough information, clearly say that you do not have enough information.
+- Return only valid JSON.
+
+{format_instructions}
 """,
     input_variables=[
         "user_message",
-        "format_instructions",
-    ],
+        "context",
+        "format_instructions",]
 )
 
 
 chain = prompt | llm | json_parser
 
 
-def generate_response(user_message: str) -> dict:
+def generate_response(
+    user_message: str,
+    context: str = ""
+) -> dict:
+
     return chain.invoke({
         "user_message": user_message,
+        "context": context,
         "format_instructions": json_parser.get_format_instructions(),
     })
