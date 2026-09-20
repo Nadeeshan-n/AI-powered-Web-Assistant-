@@ -1,11 +1,10 @@
 from pathlib import Path
 from typing import List
-from langchain_chroma import Chroma
+
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
-
-
+from langchain_chroma import Chroma
 
 from services.hf_embeddings import HuggingFaceEmbeddings
 
@@ -19,8 +18,16 @@ COLLECTION_NAME = "knowledge_base"
 class RAGService:
 
     def __init__(self):
-        DOCUMENTS_DIR.mkdir(parents=True, exist_ok=True)
-        VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
+
+        DOCUMENTS_DIR.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        VECTORSTORE_DIR.mkdir(
+            parents=True,
+            exist_ok=True
+        )
 
         self.embeddings = HuggingFaceEmbeddings()
 
@@ -35,48 +42,81 @@ class RAGService:
             chunk_overlap=200,
         )
 
-    def load_pdf(self, file_path: str) -> List[Document]:
+    # --------------------------------------------------------
+    # Load PDF
+    # --------------------------------------------------------
+
+    def load_pdf(
+        self,
+        file_path: str
+    ) -> List[Document]:
+
         loader = PyPDFLoader(file_path)
+
         return loader.load()
+
+    # --------------------------------------------------------
+    # Split documents
+    # --------------------------------------------------------
 
     def split_documents(
         self,
-        documents: List[Document],
+        documents: List[Document]
     ) -> List[Document]:
 
-        return self.text_splitter.split_documents(documents)
+        return self.text_splitter.split_documents(
+            documents
+        )
 
-    def index_pdf(self, file_path: str) -> int:
+    # --------------------------------------------------------
+    # Index PDF
+    # --------------------------------------------------------
 
-        documents = self.load_pdf(file_path)
+    def index_pdf(
+        self,
+        file_path: str
+    ) -> int:
 
-        chunks = self.split_documents(documents)
+        documents = self.load_pdf(
+            file_path
+        )
 
-        self.vectorstore.add_documents(chunks)
+        chunks = self.split_documents(
+            documents
+        )
+
+        self.vectorstore.add_documents(
+            chunks
+        )
 
         return len(chunks)
 
-    def search(
+    # --------------------------------------------------------
+    # Retrieve documents
+    # --------------------------------------------------------
+
+    def retrieve(
         self,
         query: str,
-        k: int = 4,
+        k: int = 4
     ) -> List[Document]:
 
         return self.vectorstore.similarity_search(
             query,
-            k=k,
+            k=k
         )
+
+    # --------------------------------------------------------
+    # Build context
+    # --------------------------------------------------------
 
     def build_context(
         self,
-        query: str,
-        k: int = 4,
+        documents: List[Document]
     ) -> str:
 
-        documents = self.search(query, k)
-
         if not documents:
-            return ""
+            return "No relevant knowledge was found."
 
         context_parts = []
 
@@ -84,21 +124,79 @@ class RAGService:
 
             source = document.metadata.get(
                 "source",
-                "unknown"
+                "Unknown"
             )
 
             page = document.metadata.get(
                 "page",
-                "unknown"
+                "Unknown"
             )
+
+            # Convert page number to human-friendly numbering
+            if isinstance(page, int):
+                page = page + 1
 
             context_parts.append(
                 f"Source: {source}\n"
                 f"Page: {page}\n"
-                f"Content:\n{document.page_content}"
+                f"Content:\n"
+                f"{document.page_content}"
             )
 
-        return "\n\n---\n\n".join(context_parts)
+        return "\n\n---\n\n".join(
+            context_parts
+        )
+
+    # --------------------------------------------------------
+    # Extract source information
+    # --------------------------------------------------------
+
+    def get_sources(
+        self,
+        documents: List[Document]
+    ) -> list:
+
+        sources = []
+
+        for document in documents:
+
+            source = document.metadata.get(
+                "source",
+                "Unknown"
+            )
+
+            page = document.metadata.get(
+                "page",
+                "Unknown"
+            )
+
+            if isinstance(page, int):
+                page = page + 1
+
+            sources.append({
+                "document": Path(
+                    source
+                ).name,
+                "page": page,
+            })
+
+        return sources
+
+
+    def list_documents(self) -> list:
+
+        documents = []
+
+        for file_path in sorted(
+            DOCUMENTS_DIR.glob("*.pdf")
+        ):
+
+            documents.append({
+                "name": file_path.name,
+                "size": file_path.stat().st_size
+            })
+
+            return documents
 
 
 rag_service = RAGService()

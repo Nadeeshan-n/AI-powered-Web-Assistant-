@@ -1,6 +1,5 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
 
 from config import (
@@ -13,29 +12,54 @@ from config import (
 )
 
 
+# ============================================================
+# Structured response schema
+# ============================================================
+
+from pydantic import BaseModel, Field
+
+
 class AIResponse(BaseModel):
+
     summary: str = Field(
+        default="",
         description="A short summary of the user's message"
     )
 
     sentiment: int = Field(
-        description="Integer from 0 to 100"
+        default=50,
+        description=(
+            "Integer from 0 to 100. "
+            "0 = very negative, "
+            "50 = neutral, "
+            "100 = very positive"
+        )
     )
 
     response: str = Field(
-        description="Helpful response to the user"
+        default="",
+        description="A helpful and natural answer to the user"
     )
 
+# ============================================================
+# JSON parser
+# ============================================================
 
-json_parser = JsonOutputParser(
-    pydantic_object=AIResponse
-)
 
+
+
+# ============================================================
+# Model factory
+# ============================================================
 
 def create_llm():
+
     if AI_PROVIDER == "openrouter":
+
         if not OPENROUTER_API_KEY:
-            raise ValueError("OPENROUTER_API_KEY is not configured.")
+            raise ValueError(
+                "OPENROUTER_API_KEY is not configured."
+            )
 
         return ChatOpenAI(
             model=OPENROUTER_MODEL,
@@ -49,9 +73,12 @@ def create_llm():
             },
         )
 
-    if AI_PROVIDER == "huggingface":
+    elif AI_PROVIDER == "huggingface":
+
         if not HF_TOKEN:
-            raise ValueError("HF_TOKEN is not configured.")
+            raise ValueError(
+                "HF_TOKEN is not configured."
+            )
 
         return ChatOpenAI(
             model=HF_MODEL,
@@ -61,53 +88,118 @@ def create_llm():
             max_tokens=PARAMETERS["max_output_tokens"],
         )
 
-    raise ValueError(
-        f"Unsupported AI provider: {AI_PROVIDER}"
-    )
+    else:
+        raise ValueError(
+            f"Unsupported AI provider: {AI_PROVIDER}"
+        )
 
 
 llm = create_llm()
+structured_llm = llm.with_structured_output(
+    AIResponse,
+    method="function_calling"
+)
 
+
+# ============================================================
+# RAG Prompt
+# ============================================================
 
 prompt = PromptTemplate(
     template="""
-You are an intelligent personal AI assistant.
+You are an intelligent AI assistant.
 
-Analyze the user's message and return a JSON object.
+Use the retrieved knowledge below to answer the user's question.
 
-The JSON must contain:
+RETRIEVED KNOWLEDGE
+-------------------
+{context}
+-------------------
 
-"summary":
-A short summary of the user's message.
-
-"sentiment":
-An integer from 0 to 100.
-0 = very negative
-50 = neutral
-100 = very positive
-
-"response":
-A helpful and natural response to the user.
-
-{format_instructions}
-
-User message:
+USER QUESTION
+-------------------
 {user_message}
+-------------------
 
-Return ONLY valid JSON.
+Rules:
+
+- Use the retrieved knowledge when it is relevant.
+- Do not invent information that is not supported by the retrieved knowledge.
+- If the retrieved knowledge does not contain enough information,
+  clearly say that the available knowledge does not provide enough information.
+- Keep the answer natural and helpful.
 """,
     input_variables=[
+        "context",
         "user_message",
-        "format_instructions",
     ],
 )
 
 
-chain = prompt | llm | json_parser
+# ============================================================
+# LCEL chain
+# ============================================================
+
+chain = prompt | structured_llm
 
 
-def generate_response(user_message: str) -> dict:
-    return chain.invoke({
+# ============================================================
+# Generate response
+# ============================================================
+
+def generate_response(
+    user_message: str,
+    context: str = ""
+) -> dict:
+
+    result = chain.invoke({
         "user_message": user_message,
-        "format_instructions": json_parser.get_format_instructions(),
+        "context": context,
     })
+
+    if isinstance(result, AIResponse):
+        return result.model_dump()
+
+    return result
+
+def generate_response(
+    user_message: str,
+    context: str = ""
+) -> dict:
+
+    result = chain.invoke({
+        "user_message": user_message,
+        "context": context,
+    })
+
+    if isinstance(result, AIResponse):
+
+        data = result.model_dump()
+
+    elif isinstance(result, dict):
+
+        data = result
+
+    else:
+
+        raise ValueError(
+            "Model returned an unsupported response type."
+        )
+
+    # Ensure required application fields exist
+    data.setdefault(
+        "summary",
+        user_message[:100]
+    )
+
+    data.setdefault(
+        "sentiment",
+        50
+    )
+
+    data.setdefault(
+        "response",
+        "I could not generate a response."
+    )
+
+    return data

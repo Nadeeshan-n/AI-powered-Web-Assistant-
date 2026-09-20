@@ -485,3 +485,81 @@ textarea::placeholder {
         padding: 24px;
     }
 }
+.document-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.document-title {
+    font-size: 0.65rem;
+    color: var(--ink-muted);
+    letter-spacing: 0.08em;
+}
+
+.upload-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 10px;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-align: left;
+}
+
+.upload-btn:hover {
+    background: var(--accent);
+    color: var(--bg);
+}
+
+.upload-status {
+    font-size: 0.58rem;
+    color: var(--accent);
+    line-height: 1.5;
+}
+
+.document-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.document-item {
+    font-size: 0.6rem;
+    color: var(--ink-muted);
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+    word-break: break-word;
+}
+
+.message-sources {
+    margin-top: 15px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border);
+}
+
+.sources-title {
+    font-size: 0.6rem;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+}
+
+.source-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    font-size: 0.6rem;
+    color: var(--ink-muted);
+    padding: 4px 0;
+}
+
+.source-item span:first-child {
+    color: var(--ink);
+}
+
+.source-item span:last-child {
+    color: var(--accent);
+}
