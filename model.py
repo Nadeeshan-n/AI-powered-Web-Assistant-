@@ -1,60 +1,87 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
 
 from config import (
-    GEMINI_API_KEY,
-    GEMINI_MODEL_ID,
-    PARAMETERS
+    AI_PROVIDER,
+    OPENROUTER_API_KEY,
+    OPENROUTER_MODEL,
+    HF_TOKEN,
+    HF_MODEL,
+    PARAMETERS,
 )
 
 
-# Define JSON response structure
 class AIResponse(BaseModel):
     summary: str = Field(
         description="A short summary of the user's message"
     )
 
     sentiment: int = Field(
-        description="Sentiment score from 0 (very negative) to 100 (very positive)"
+        description="Integer from 0 to 100"
     )
 
     response: str = Field(
-        description="A helpful response to the user's message"
+        description="Helpful response to the user"
     )
 
 
-# JSON parser
 json_parser = JsonOutputParser(
     pydantic_object=AIResponse
 )
 
 
-# Initialize Gemini
-gemini_llm = ChatGoogleGenerativeAI(
-    model=GEMINI_MODEL_ID,
-    google_api_key=GEMINI_API_KEY,
-    temperature=PARAMETERS["temperature"],
-    max_output_tokens=PARAMETERS["max_output_tokens"]
-)
+def create_llm():
+    if AI_PROVIDER == "openrouter":
+        if not OPENROUTER_API_KEY:
+            raise ValueError("OPENROUTER_API_KEY is not configured.")
+
+        return ChatOpenAI(
+            model=OPENROUTER_MODEL,
+            api_key=OPENROUTER_API_KEY,
+            base_url="https://openrouter.ai/api/v1",
+            temperature=PARAMETERS["temperature"],
+            max_tokens=PARAMETERS["max_output_tokens"],
+            default_headers={
+                "HTTP-Referer": "http://localhost:5000",
+                "X-OpenRouter-Title": "AI-Powered Web Assistant",
+            },
+        )
+
+    if AI_PROVIDER == "huggingface":
+        if not HF_TOKEN:
+            raise ValueError("HF_TOKEN is not configured.")
+
+        return ChatOpenAI(
+            model=HF_MODEL,
+            api_key=HF_TOKEN,
+            base_url="https://router.huggingface.co/v1",
+            temperature=PARAMETERS["temperature"],
+            max_tokens=PARAMETERS["max_output_tokens"],
+        )
+
+    raise ValueError(
+        f"Unsupported AI provider: {AI_PROVIDER}"
+    )
 
 
-# Prompt template
-gemini_template = PromptTemplate(
-    template="""You are an personal AI assistant.
+llm = create_llm()
 
-{system_prompt}
+
+prompt = PromptTemplate(
+    template="""
+You are an intelligent personal AI assistant.
 
 Analyze the user's message and return a JSON object.
 
-The JSON MUST contain these three fields:
+The JSON must contain:
 
 "summary":
 A short summary of the user's message.
 
 "sentiment":
-An integer between 0 and 100.
+An integer from 0 to 100.
 0 = very negative
 50 = neutral
 100 = very positive
@@ -62,34 +89,25 @@ An integer between 0 and 100.
 "response":
 A helpful and natural response to the user.
 
-{format_prompt}
+{format_instructions}
 
 User message:
-{user_prompt}
+{user_message}
 
-IMPORTANT:
-- Always provide all three fields.
-- Never omit a field.
-- Never return an empty JSON object.
-- Return ONLY valid JSON.
+Return ONLY valid JSON.
 """,
     input_variables=[
-        "system_prompt",
-        "user_prompt",
-        "format_prompt"
-    ]
+        "user_message",
+        "format_instructions",
+    ],
 )
 
 
-# Generate Gemini response
-def gemini_response(system_prompt, user_prompt):
+chain = prompt | llm | json_parser
 
-    chain = gemini_template | gemini_llm | json_parser
 
-    result = chain.invoke({
-        "system_prompt": system_prompt,
-        "user_prompt": user_prompt,
-        "format_prompt": json_parser.get_format_instructions()
+def generate_response(user_message: str) -> dict:
+    return chain.invoke({
+        "user_message": user_message,
+        "format_instructions": json_parser.get_format_instructions(),
     })
-
-    return result

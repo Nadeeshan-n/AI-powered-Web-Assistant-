@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, render_template
-from model import gemini_response
+from services.ai_service import generate_ai_response
 import time
 
 app = Flask(__name__)
@@ -39,10 +39,7 @@ def generate():
         # Select model
         if model == "gemini":
 
-            result = gemini_response(
-                system_prompt,
-                user_message
-            )
+           result = generate_ai_response(user_message)
 
         else:
 
