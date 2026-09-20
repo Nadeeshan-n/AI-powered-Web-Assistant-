@@ -544,10 +544,58 @@
 </head>
 <body>
     <aside>
-        <div class="brand">AI_NODE</div>
-        <div class="sidebar-item">SESSION_01</div>
-        <div class="sidebar-item">HISTORICAL_LOG</div>
-        <div class="terminal-meta">STATUS: ONLINE<br>SYNC_ACTIVE</div>
+
+    <div class="brand">AI_NODE</div>
+
+    <div class="sidebar-item">SESSION_01</div>
+
+    <div class="sidebar-item">
+        KNOWLEDGE_BASE
+    </div>
+
+    <div class="document-panel">
+
+        <div class="document-title">
+            DOCUMENTS
+        </div>
+
+        <button
+            type="button"
+            id="uploadDocumentBtn"
+            class="upload-btn"
+        >
+            + UPLOAD PDF
+        </button>
+
+        <input
+            type="file"
+            id="documentFile"
+            accept=".pdf"
+            hidden
+        >
+
+        <div
+            id="uploadStatus"
+            class="upload-status"
+        ></div>
+
+        <div
+            id="documentList"
+            class="document-list"
+        ></div>
+
+    </div>
+
+    <div class="sidebar-item">
+        HISTORICAL_LOG
+    </div>
+
+    <div class="terminal-meta">
+        STATUS: ONLINE<br>
+        RAG: ACTIVE<br>
+        SYNC_ACTIVE
+    </div>
+
     </aside>
 
     <main>

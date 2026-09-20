@@ -16,6 +16,10 @@ const sendIcon = document.getElementById('sendIcon');
 const loadingSpinner = document.getElementById('loadingSpinner');
 const themeToggleBtn = document.getElementById('themeToggleBtn');
 const themeToggleText = document.getElementById('themeToggleText');
+const uploadDocumentBtn = document.getElementById('uploadDocumentBtn')
+const documentFile = document.getElementById('documentFile');
+const uploadStatus = document.getElementById('uploadStatus');
+const documentList = document.getElementById('documentList');
 
 function getStoredTheme() {
     try {
@@ -62,6 +66,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial state
     updateSendButton();
+
+    // Load documents 
+    loadDocuments();
 });
 
 function setupEventListeners() {
@@ -214,6 +221,31 @@ function displayMessage(message) {
     
     const durationBadge = message.duration ? 
         `<span style="opacity: 0.7;">[LATENCY: ${message.duration.toFixed(2)}s]</span>` : '';
+
+    const sourcesHtml =
+    message.sources &&
+    message.sources.length > 0
+        ? `
+            <div class="message-sources">
+                <div class="sources-title">
+                    SOURCES
+                </div>
+
+                ${message.sources.map(source => `
+                    <div class="source-item">
+                        <span>
+                            ${escapeHtml(source.document)}
+                        </span>
+                        <span>
+                            Page ${escapeHtml(
+                                String(source.page)
+                            )}
+                        </span>
+                    </div>
+                `).join('')}
+            </div>
+        `
+        : '';
     
     messageEl.innerHTML = `
         <div class="avatar">${avatarLabel}</div>
@@ -225,10 +257,18 @@ function displayMessage(message) {
                 ${durationBadge}
             </div>
             <div class="message-bubble">
-                <div class="message-text">${escapeHtml(message.content)}</div>
+
+                <div class="message-text">
+                    ${escapeHtml(message.content)}
+                </div>
+
+                ${sourcesHtml}
+
             </div>
         </div>
     `;
+
+
     
     messagesContainer.appendChild(messageEl);
     scrollToBottom();
@@ -285,3 +325,144 @@ function clearChat() {
 function scrollToBottom() {
     messagesEnd.scrollIntoView({ behavior: 'smooth' });
 }
+
+function setUploadStatus(message, isError = false) {
+
+    if (!uploadStatus) return;
+
+    uploadStatus.textContent = message;
+
+    uploadStatus.style.color =
+        isError ? '#ff6b6b' : '';
+}
+
+
+async function uploadDocument(file) {
+
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+
+        setUploadStatus(
+            'Only PDF files are supported.',
+            true
+        );
+
+        return;
+    }
+
+    setUploadStatus(
+        'INDEXING_DOCUMENT...'
+    );
+
+    const formData = new FormData();
+
+    formData.append(
+        'file',
+        file
+    );
+
+    try {
+
+        const response = await fetch(
+            '/documents/upload',
+            {
+                method: 'POST',
+                body: formData
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+
+            throw new Error(
+                data.error ||
+                'Upload failed.'
+            );
+        }
+
+        setUploadStatus(
+            `INDEXED: ${data.document} (${data.chunks} chunks)`
+        );
+
+        loadDocuments();
+
+    } catch (error) {
+
+        setUploadStatus(
+            `ERROR: ${error.message}`,
+            true
+        );
+    }
+}
+async function loadDocuments() {
+
+    if (!documentList) return;
+
+    try {
+
+        const response = await fetch(
+            '/documents'
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                'Failed to load documents.'
+            );
+        }
+
+        documentList.innerHTML = '';
+
+        data.documents.forEach(
+            document => {
+
+                const item =
+                    document.createElement('div');
+
+                item.className =
+                    'document-item';
+
+                item.textContent =
+                    document.name;
+
+                documentList.appendChild(
+                    item
+                );
+            }
+        );
+
+    } catch (error) {
+
+        documentList.textContent =
+            'Unable to load documents.';
+    }
+}
+if (uploadDocumentBtn) {
+
+    uploadDocumentBtn.addEventListener(
+        'click',
+        () => documentFile.click()
+    );
+}
+
+
+if (documentFile) {
+
+    documentFile.addEventListener(
+        'change',
+        () => {
+
+            const file =
+                documentFile.files[0];
+
+            uploadDocument(file);
+
+            documentFile.value = '';
+        }
+    );
+}
+

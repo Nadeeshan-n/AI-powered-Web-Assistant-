@@ -183,4 +183,20 @@ class RAGService:
         return sources
 
 
+    def list_documents(self) -> list:
+
+        documents = []
+
+        for file_path in sorted(
+            DOCUMENTS_DIR.glob("*.pdf")
+        ):
+
+            documents.append({
+                "name": file_path.name,
+                "size": file_path.stat().st_size
+            })
+
+            return documents
+
+
 rag_service = RAGService()

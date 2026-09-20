@@ -1,6 +1,5 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
 
 from config import (
@@ -17,30 +16,36 @@ from config import (
 # Structured response schema
 # ============================================================
 
+from pydantic import BaseModel, Field
+
+
 class AIResponse(BaseModel):
+
     summary: str = Field(
+        default="",
         description="A short summary of the user's message"
     )
 
     sentiment: int = Field(
-        description="Integer from 0 to 100. "
-                    "0 = very negative, "
-                    "50 = neutral, "
-                    "100 = very positive"
+        default=50,
+        description=(
+            "Integer from 0 to 100. "
+            "0 = very negative, "
+            "50 = neutral, "
+            "100 = very positive"
+        )
     )
 
     response: str = Field(
+        default="",
         description="A helpful and natural answer to the user"
     )
-
 
 # ============================================================
 # JSON parser
 # ============================================================
 
-json_parser = JsonOutputParser(
-    pydantic_object=AIResponse
-)
+
 
 
 # ============================================================
@@ -90,6 +95,10 @@ def create_llm():
 
 
 llm = create_llm()
+structured_llm = llm.with_structured_output(
+    AIResponse,
+    method="function_calling"
+)
 
 
 # ============================================================
@@ -100,8 +109,7 @@ prompt = PromptTemplate(
     template="""
 You are an intelligent AI assistant.
 
-Your job is to answer the user's question using the
-retrieved knowledge provided below.
+Use the retrieved knowledge below to answer the user's question.
 
 RETRIEVED KNOWLEDGE
 -------------------
@@ -113,23 +121,17 @@ USER QUESTION
 {user_message}
 -------------------
 
-Instructions:
+Rules:
 
-1. Use the retrieved knowledge when it is relevant.
-2. Do not invent facts that are not supported by the context.
-3. If the context does not contain enough information,
-   clearly say that the available knowledge does not
-   provide enough information.
-4. Keep the answer natural and helpful.
-5. Always return all required JSON fields.
-6. Return ONLY valid JSON.
-
-{format_instructions}
+- Use the retrieved knowledge when it is relevant.
+- Do not invent information that is not supported by the retrieved knowledge.
+- If the retrieved knowledge does not contain enough information,
+  clearly say that the available knowledge does not provide enough information.
+- Keep the answer natural and helpful.
 """,
     input_variables=[
         "context",
         "user_message",
-        "format_instructions",
     ],
 )
 
@@ -138,11 +140,7 @@ Instructions:
 # LCEL chain
 # ============================================================
 
-chain = (
-    prompt
-    | llm
-    | json_parser
-)
+chain = prompt | structured_llm
 
 
 # ============================================================
@@ -157,8 +155,51 @@ def generate_response(
     result = chain.invoke({
         "user_message": user_message,
         "context": context,
-        "format_instructions":
-            json_parser.get_format_instructions(),
     })
 
+    if isinstance(result, AIResponse):
+        return result.model_dump()
+
     return result
+
+def generate_response(
+    user_message: str,
+    context: str = ""
+) -> dict:
+
+    result = chain.invoke({
+        "user_message": user_message,
+        "context": context,
+    })
+
+    if isinstance(result, AIResponse):
+
+        data = result.model_dump()
+
+    elif isinstance(result, dict):
+
+        data = result
+
+    else:
+
+        raise ValueError(
+            "Model returned an unsupported response type."
+        )
+
+    # Ensure required application fields exist
+    data.setdefault(
+        "summary",
+        user_message[:100]
+    )
+
+    data.setdefault(
+        "sentiment",
+        50
+    )
+
+    data.setdefault(
+        "response",
+        "I could not generate a response."
+    )
+
+    return data
